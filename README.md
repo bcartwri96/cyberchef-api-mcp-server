@@ -4,11 +4,11 @@ This model context protocol (MCP) server interfaces with the [CyberChef Server](
 
 🧰 Available Tools and Resources
 ---
-- `get_cyberchef_operations_categories`: _resource_ - gets updated Cyber Chef categories for additional context / selection of the correct operations
-- `get_cyberchef_operation_by_category`: _resource_ - gets list of Cyber Chef operations for a selected category
-- `bake_recipe`: _tool_ - bake (execute) a recipe (a list of operations) in order to derive an outcome from the input data
-- `batch_bake_recipe`: _tool_ - bake (execute) a recipe (a list of operations) in order to derive an outcome from a batch of input data
-- `perform_magic_operation`: _tool_ - perform CyberChef's magic operation which is designed to automatically detect how your data is encoded and which operations can be used to decode it
+- `get_cyberchef_operations_categories`: __resource__ - gets updated Cyber Chef categories for additional context / selection of the correct operations
+- `get_cyberchef_operation_by_category`: __resource__ - gets list of Cyber Chef operations for a selected category
+- `bake_recipe`: __tool__ - bake (execute) a recipe (a list of operations) in order to derive an outcome from the input data
+- `batch_bake_recipe`: __tool__ - bake (execute) a recipe (a list of operations) in order to derive an outcome from a batch of input data
+- `perform_magic_operation`: __tool__ - perform CyberChef's magic operation which is designed to automatically detect how your data is encoded and which operations can be used to decode it
 
 📝 Usage
 ---
@@ -70,6 +70,13 @@ Using the MCP server in this example use case, the following prerequisites apply
 
 Here is a basic prompt being solved using the MCP server tools:
 <img width="1511" src="https://github.com/user-attachments/assets/657f52b3-43eb-4c3b-94f1-289fc12817b2" />
+
+🙇 References
+---
+- [CyberChef](https://github.com/gchq/CyberChef)
+- [CyberChef Server](https://github.com/gchq/CyberChef-server)
+- [Model Context Protocol](https://github.com/modelcontextprotocol)
+- [FastMCP](https://github.com/jlowin/fastmcp)
 
 🪪 License
 ---
