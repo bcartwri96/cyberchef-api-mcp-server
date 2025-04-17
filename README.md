@@ -40,11 +40,13 @@ mcp install server.py --name "CyberChef API MCP Server"
      "command": "uv",
      "args": [
        "run",
-        "--with",
-        "mcp[cli]",
-        "mcp",
-        "run",
-        "cyberchef-api-mcp-server/cyberchef_api_mcp_server/server.py"
+       "--with",
+       "mcp[cli]",
+       "--directory",
+       "cyberchef-api-mcp-server/cyberchef_api_mcp_server/",
+       "mcp",
+       "run",
+       "server.py"
      ],
      "env": {
        "CYBERCHEF_API_URL": "your-cyberchef-api-url"
