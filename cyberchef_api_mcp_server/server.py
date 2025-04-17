@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 from pydantic import BaseModel
 from mcp.server.fastmcp import FastMCP
-from cyberchefoperations import CyberChefOperations
+from cyberchef_api_mcp_server.cyberchefoperations import CyberChefOperations
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
