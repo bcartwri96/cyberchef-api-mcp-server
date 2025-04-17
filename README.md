@@ -56,6 +56,9 @@ mcp install server.py --name "CyberChef API MCP Server"
 }
 ```
 
+Here is a basic prompt being solved using the MCP server tools:
+<img width="1511" src="https://github.com/user-attachments/assets/657f52b3-43eb-4c3b-94f1-289fc12817b2" />
+
 License
 ---
 MIT License
