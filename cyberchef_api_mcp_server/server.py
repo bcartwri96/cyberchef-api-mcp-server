@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import base64
 import os
 import httpx
 import logging
 from typing import Optional
 from pydantic import BaseModel
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from cyberchef_api_mcp_server.cyberchefoperations import CyberChefOperations
 
 log = logging.getLogger(__name__)
@@ -43,14 +44,21 @@ def create_api_request(endpoint: str, request_data: dict) -> dict:
     }
 
     try:
-        log.info(f"Attempting to send POST request to {api_url}")
+        log.info(f"Attempting to send POST request to {api_url} with request_data {request_data}")
+        log.info("[MCP → CyberChef] POST %s", api_url)
+        log.info("[MCP → CyberChef] Headers: %s", request_headers)
+        log.info("[MCP → CyberChef] Body: %s", request_data)
+
         response = httpx.post(
             url=api_url,
             headers=request_headers,
             json=request_data
         )
-        response.raise_for_status()
-        return response.json()
+        if response.status_code >= 400:
+            # return the upstream error instead of raising
+            return {"error": {"status": response.status_code, "body": response.text}}
+        else:
+            return response.json()
     except httpx.RequestError as req_exc:
         log.error(f"Exception raised during HTTP POST request to {api_url} - {req_exc}")
         return {"error": f"Exception raised during HTTP POST request to {api_url} - {req_exc}"}
@@ -76,30 +84,42 @@ def get_cyberchef_operation_by_category(category: str) -> list:
 
 
 @mcp.tool()
-def bake_recipe(input_data: str, recipe: list[CyberChefRecipeOperation]) -> dict:
+def bake_recipe(
+    input_data: str, 
+    recipe: list[CyberChefRecipeOperation],
+    return_format: str = "auto",  # auto|utf8|latin1|hex|base64
+) -> dict:
     """
     Bake (execute) a recipe (a list of operations) in order to derive an outcome from the input data
 
-    :param input_data: the data in which to perform the recipe operation(s) on
-    :param recipe: a pydantic model of operations to 'bake'/execute on the input data
+    :param input_data: the data in which to perform the recipe operation(s) on (REQUIRED)
+    :param recipe: a pydantic model of operations to 'bake'/execute on the input data (REQUIRED)
+    :param return_format: tell the tool how to return you the data (if it can, so be sensible.)
     :return:
     """
     request_data = {
         "input": input_data,
         "recipe": [op.model_dump() for op in recipe]
     }
+
+    log.info("[MCP INBOUND] bake_recipe args input_data=%r return_format=%r", input_data, return_format)
+    log.info("[MCP INBOUND] bake_recipe recipe=%r", recipe)
+    
     response_data = create_api_request(endpoint="bake", request_data=request_data)
 
-    # If the response has a byte array, decode and return
-    data_type = response_data.get("type")
-    if data_type is not None and data_type == "byteArray":
-        decoded_value = bytes(response_data["value"]).decode()
-        response_data["value"] = decoded_value
-        response_data["type"] = "string"
-        return response_data
-    else:
-        return response_data
-
+    if response_data.get("type") == "byteArray":
+        raw = bytes(response_data["value"])
+        match return_format:
+            case "utf8":   return {"type":"string", "value": raw.decode("utf-8")}
+            case "latin1": return {"type":"string", "value": raw.decode("latin-1")}
+            case "hex":    return {"type":"hex",    "value": raw.hex()}
+            case "base64": return {"type":"base64", "value": base64.b64encode(raw).decode("ascii")}
+            case _:  # auto
+                try:
+                    return {"type":"string", "value": raw.decode("utf-8")}
+                except UnicodeDecodeError:
+                    return {"type":"base64", "value": base64.b64encode(raw).decode("ascii")}
+    return response_data
 
 @mcp.tool()
 def batch_bake_recipe(batch_input_data: list[str], recipe: list[CyberChefRecipeOperation]) -> dict:
@@ -141,7 +161,7 @@ def perform_magic_operation(
 
     :param input_data: the data in which to perform the magic operation on
     :param depth: how many levels of recursion to attempt pattern matching and speculative execution on the input data
-    :param intensive_mode: optional argument which will run additional operations and take considerably longer to run
+    :param intensive_mode: optional argument which will run additional operations and take considerably longer to run. stick to 1 UNLESS necessary
     :param extensive_language_support: if this is true all 245 languages are supported opposed to the top 38 by default
     :param crib_str: argument for any known plaintext string or regex
     :return:
@@ -161,8 +181,7 @@ def perform_magic_operation(
 def main():
     """Initialize and run the server"""
     log.info("Starting the CyberChef MCP server")
-    mcp.run(transport="stdio")
-
+    mcp.run(transport="http", host="127.0.0.1", port=3001)
 
 if __name__ == "__main__":
     main()
