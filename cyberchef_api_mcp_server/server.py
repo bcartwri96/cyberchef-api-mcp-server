@@ -95,7 +95,11 @@ def bake_recipe(
     :param input_data: the data in which to perform the recipe operation(s) on (REQUIRED)
     :param recipe: a pydantic model of operations to 'bake'/execute on the input data (REQUIRED)
     :param return_format: tell the tool how to return you the data (if it can, so be sensible.)
-    :return:
+
+    Tips:
+    - Common ops: "To Hex", "From Hex", "To Base64", "From Base64".
+    - See resources `data://cyberchef-operations-categories`
+      and `data://cyberchef-operations-by-category/{category}` for the full catalog.
     """
     request_data = {
         "input": input_data,
@@ -104,7 +108,7 @@ def bake_recipe(
 
     log.info("[MCP INBOUND] bake_recipe args input_data=%r return_format=%r", input_data, return_format)
     log.info("[MCP INBOUND] bake_recipe recipe=%r", recipe)
-    
+
     response_data = create_api_request(endpoint="bake", request_data=request_data)
 
     if response_data.get("type") == "byteArray":
