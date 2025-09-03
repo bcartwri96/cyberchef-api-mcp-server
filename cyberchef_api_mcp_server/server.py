@@ -22,6 +22,29 @@ if cyberchef_api_url is None:
     log.warning("There is no environment variable CYBERCHEF_API_URL defaulting to http://localhost:3000/")
     cyberchef_api_url = "http://localhost:3000/"
 
+# ----------------------------
+# Timeout knobs (ENV-configurable)
+# ----------------------------
+# Defaults: long read timeout for heavy "Magic" runs; others remain modest.
+# Set CYBERCHEF_HTTP_READ_TIMEOUT=none to disable read timeouts entirely.
+_CONNECT_TIMEOUT = float(os.getenv("CYBERCHEF_HTTP_CONNECT_TIMEOUT", "10"))
+_WRITE_TIMEOUT   = float(os.getenv("CYBERCHEF_HTTP_WRITE_TIMEOUT", "60"))
+_POOL_TIMEOUT    = float(os.getenv("CYBERCHEF_HTTP_POOL_TIMEOUT", "60"))
+
+_raw_read = os.getenv("CYBERCHEF_HTTP_READ_TIMEOUT", "900")  # 15 minutes default
+_READ_TIMEOUT = None if str(_raw_read).strip().lower() == "none" else float(_raw_read)
+
+def _make_timeout() -> httpx.Timeout:
+    """
+    Build an httpx.Timeout with per-phase control.
+    Read can be None (no read timeout) for very long CyberChef executions.
+    """
+    return httpx.Timeout(
+        connect=_CONNECT_TIMEOUT,
+        read=_READ_TIMEOUT,
+        write=_WRITE_TIMEOUT,
+        pool=_POOL_TIMEOUT,
+    )
 
 class CyberChefRecipeOperation(BaseModel):
     """Model for a recipe operation with or without arguments"""
@@ -44,23 +67,39 @@ def create_api_request(endpoint: str, request_data: dict) -> dict:
     }
 
     try:
-        log.info(f"Attempting to send POST request to {api_url} with request_data {request_data}")
+        log.info("Attempting to send POST request to %s with request_data %s", api_url, request_data)
         log.info("[MCP → CyberChef] POST %s", api_url)
         log.info("[MCP → CyberChef] Headers: %s", request_headers)
         log.info("[MCP → CyberChef] Body: %s", request_data)
+        log.info(
+            "[HTTPX TIMEOUTS] connect=%s read=%s write=%s pool=%s",
+            _CONNECT_TIMEOUT, _READ_TIMEOUT, _WRITE_TIMEOUT, _POOL_TIMEOUT
+        )
 
         response = httpx.post(
             url=api_url,
             headers=request_headers,
-            json=request_data
+            json=request_data,
+            timeout=_make_timeout(),  # <-- long/disabled read timeout here
         )
         if response.status_code >= 400:
             # return the upstream error instead of raising
             return {"error": {"status": response.status_code, "body": response.text}}
         else:
+            log.info("[CyberChef → MCP] Body: %s", response.json())
             return response.json()
+
+    except httpx.ReadTimeout as exc:
+        log.error("ReadTimeout during POST to %s - %s", api_url, exc)
+        return {"error": f"ReadTimeout during HTTP POST to {api_url} - {exc}"}
+    except httpx.ConnectTimeout as exc:
+        log.error("ConnectTimeout during POST to %s - %s", api_url, exc)
+        return {"error": f"ConnectTimeout during HTTP POST to {api_url} - {exc}"}
+    except httpx.TimeoutException as exc:
+        log.error("Timeout during POST to %s - %s", api_url, exc)
+        return {"error": f"Timeout during HTTP POST to {api_url} - {exc}"}
     except httpx.RequestError as req_exc:
-        log.error(f"Exception raised during HTTP POST request to {api_url} - {req_exc}")
+        log.error("Exception raised during HTTP POST request to %s - %s", api_url, req_exc)
         return {"error": f"Exception raised during HTTP POST request to {api_url} - {req_exc}"}
 
 
